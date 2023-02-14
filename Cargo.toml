@@ -1,0 +1,21 @@
+[package]
+name = "static-server"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+axum = {version="0.6", features=["default"]}
+include_dir = "0.7.3"
+mime_guess = "2.0.4"
+tokio = {version="1", features=["full"]}
+tracing-subscriber = { version="0.3", features = ["env-filter", "time", "local-time"]}
+time = { version = "0.3.17", features = ["macros"] }
+tracing = "0.1"
+hyper = { version = "0.14", features = ["full"] }
+tower = { version = "0.4", features = ["util", "filter"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+clap = { version = "4", features = ["derive"] }
+bytes = "1"
