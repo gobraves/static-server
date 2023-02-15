@@ -28,8 +28,11 @@ struct AccessLog {
 
 #[derive(Parser)]
 struct AppSetting {
-    #[arg(long)]
-    static_dir: String
+    #[arg(short, long)]
+    static_dir: String,
+
+    #[arg(short, long, default_value_t = 3000)]
+    port: u16
 }
 
 async fn static_path_handler(Path(path): Path<String>, State(app_setting): State<Arc<AppSetting>>) -> impl IntoResponse {
@@ -59,10 +62,9 @@ async fn static_path_handler(Path(path): Path<String>, State(app_setting): State
                 .unwrap()
         }
     }
-
 }
 
-async fn extract_req_res_info(req: Request<Body>, next: Next<Body>) {
+async fn extract_req_res_info(req: Request<Body>, next: Next<Body>) -> impl IntoResponse {
     let (parts, req_body) = req.into_parts();
     let uri = parts.uri.to_string();
     let method = parts.method.to_string();
@@ -77,12 +79,12 @@ async fn extract_req_res_info(req: Request<Body>, next: Next<Body>) {
     };
     let req = Request::from_parts(parts, Body::from(req_body_bytes));
     let res = next.run(req).await;
-    let (head, _) = res.into_parts();
-    let status_code = head.status.clone();
+    let status_code = res.status().clone();
     access_log.status_code = status_code.as_u16();
     tracing::debug!(
             "{}", serde_json::to_string(&access_log).unwrap()
-    )
+    );
+    res
 }
 
 #[tokio::main]
@@ -91,7 +93,6 @@ async fn main() {
         UtcOffset::from_hms(8, 0, 0).unwrap(),
         format_description!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond digits:3]"),
     );
-
 
     let fmt_layer = fmt::layer()
         .with_timer(local_time);
@@ -106,15 +107,16 @@ async fn main() {
         .init();
 
     let app_setting = AppSetting::parse();
+    let port = app_setting.port;
 
     let state = Arc::new(app_setting);
 
     let app = Router::new()
-        .route("/:path", get(static_path_handler))
+        .route("/*path", get(static_path_handler))
         .layer(middleware::from_fn(extract_req_res_info))
         .with_state(state);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
     tracing::debug!("listening on {}", addr);
 
     axum::Server::bind(&addr)
